@@ -1,5 +1,5 @@
 ﻿// ==UserScript==
-// @id             RetainSessionHistoryInNewTab
+// @id             RetainSessionHistoryInNewTab #BAD
 // @version        0.1.0.20130612
 // @namespace      RetainSessionHistoryInNewTab@Byzod.UC.js
 // @author         Byzod

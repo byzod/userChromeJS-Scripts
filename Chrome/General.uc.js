@@ -1,6 +1,6 @@
 ﻿// ==UserScript==
 // @id             GeneralMod
-// @version        0.1.0.20140426
+// @version        0.2.1.201704017
 // @namespace      GeneralMod@Byzod.UC.js
 // @author         Byzod
 // @description    General modification
@@ -34,7 +34,7 @@ var GeneralMod = function(){
 		}
 	}
 	
-	// Shift + click = force in current tab
+	// Shift + click = force in current tab #BAD
 	this.ShiftClickOpenLinksInCurrentTabListener = function (event) {
 		if (event.shiftKey && event.button == 0) {
 			event.preventDefault();
@@ -47,7 +47,7 @@ var GeneralMod = function(){
 						gBrowser.loadURI(target.href)
 						break;
 					} /*DEBUG*/ else{
-						console.log(target.nodeName + ": " + target.href);
+						// console.log(target.nodeName + ": " + target.href);
 						/*TODO: first e.target is not content element but tabbrowser itself*/
 					}
 				} catch (ex) {
@@ -111,24 +111,100 @@ var GeneralMod = function(){
 		var dtaClickOneKey = document.getElementById("dtaCtxSaveLinkT-direct");
 		if(dtaClickOneKey && dtaClickOneKey.getAttribute("accesskey") !== "d"){
 			document.removeEventListener("contextmenu", self.ChangedTaOneClickAccessKey);
-			document.getElementById("dtaCtxSaveLinkT-direct").setAttribute("accesskey", "d");
+			dtaClickOneKey.setAttribute("accesskey", "d");
 		}
 	}
 	
-	// Change default white page background to grey
-	this.GreyOutWhitePageBackground = function(e){
-		bgColor = window.getComputedStyle(e.target.body).backgroundColor;
-		if(bgColor != "transparent"){
-			var RGBValuesArray = bgColor.match(/\d+/g); //get rgb values
-			var red   = RGBValuesArray[0];
-			var green = RGBValuesArray[1];
-			var blue  = RGBValuesArray[2];
-			if(red > 240 && green > 240 && blue > 240){
-				e.target.body.style.backgroundColor = "rgb(233, 233, 233)";
+	// Change accesskey of send xxx to device
+	this.ChangeSendToDeviceAccessKey = function(e, self){
+		var sendLinkKey = document.getElementById("context-sendlinktodevice");
+		var sendPageKey = document.getElementById("context-sendpagetodevice");
+		if(sendLinkKey && sendPageKey){
+			document.removeEventListener("contextmenu", self.ChangeSendToDeviceAccessKey);
+			sendLinkKey.setAttribute("accesskey", "t");
+			sendPageKey.setAttribute("accesskey", "t");
+		}
+	}
+	
+	// Tweak grease monkey #BAD
+	this.GreaseMoneyPlus = function(){
+		// Change GM button behavior
+		var tb = document.querySelector("#TabsToolbar");
+		tb.addEventListener(
+			"contextmenu",
+			function(e){
+				if(e.target.id == "greasemonkey-tbb" && e.button == 2){
+					e.stopPropagation();
+					e.preventDefault();
+					e.target.firstChild.showPopup();
+				}
+			},
+			false
+		);
+		
+		// Change 'get scripts' behavior (open greasyfork)
+		var gmBtn = document.querySelector("#greasemonkey-tbb");
+		var gmGetScripts = gmBtn.querySelector("menuitem[label='获取用户脚本']");
+		gmGetScripts.setAttribute("oncommand", "GM_BrowserUI.openTab('https://greasyfork.org/');");
+	}
+	
+	// Add copy tab title to tab context menu
+	this.AddCopyTabTitleMenuitem = function(){
+		var menu = document.getElementById("tabContextMenu");
+		var item = document.createElement("menuitem");
+		item.setAttribute("id", "bv-copyTabTitle");
+		item.setAttribute("accesskey", "X");
+		item.setAttribute("label", "复制标签页标题");
+		item.setAttribute("oncommand", "Components.classes['@mozilla.org/widget/clipboardhelper;1'].getService(Components.interfaces.nsIClipboardHelper).copyString(TabContextMenu.contextTab.linkedBrowser.contentTitle);");
+		menu.appendChild(item)
+	}
+	
+	// Close current tab when double click RMB
+	this.CloseCurrentTabByDoubleClickRMB = function(){
+		// gBrowser.mPanelContainer.addEventListener(
+			// 'dblclick', 
+			// (e)=>{
+				// if(e.button == 2){
+					// e.preventDefault();
+					// e.stopPropagation();
+					// if (gBrowser.selectedTab.getAttribute("pinned") !== "true") {
+						// gBrowser.removeCurrentTab();
+						// document.getElementById("contentAreaContextMenu").hidePopup();
+						// setTimeout(e=>document.getElementById("contentAreaContextMenu").hidePopup(), 50);
+					// }
+				// }
+			// }, 
+			// true
+		// );
+		
+		(new RightClickTabKiller()).Init(gBrowser.mPanelContainer);
+		
+		function RightClickTabKiller(){
+			var self = this;
+			this.isDblClicked = false;
+			this.DbclickListener = e=>{
+				if(e.button === 2){
+					self.isDblClicked = true;
+					// console.log(Date.now() + " dblclick: isDblClicked = true");//DEBUG
+				}
 			}
-		}else{
-			// Let's grey it out anyway
-			e.target.body.style.backgroundColor = "rgb(233, 233, 233)";
+			this.ContextmenuListener = e=>{
+				// console.log(Date.now() + " contextmenu: isDblClicked == " + self.isDblClicked);//DEBUG
+				if(self.isDblClicked && e.button === 2){
+					e.preventDefault();
+					e.stopPropagation();
+					if (gBrowser.selectedTab.getAttribute("pinned") !== "true") {
+						gBrowser.removeCurrentTab();
+						document.getElementById("contentAreaContextMenu").hidePopup();
+						// console.log(Date.now() + " contextmenu: hidePopup()");//DEBUG
+					}
+				}
+				self.isDblClicked = false;
+			}
+			this.Init = contentContainer=>{
+				contentContainer.addEventListener("dblclick", self.DbclickListener, true);
+				contentContainer.addEventListener("contextmenu", self.ContextmenuListener, true);
+			}
 		}
 	}
 	
@@ -139,26 +215,6 @@ var GeneralMod = function(){
 		document.getElementById("btn_undoclose").classList.remove("toolbarbutton-1");
 		// Change access key of view to use alt+V keytweak
 		document.getElementById("view-menu").setAttribute("accesskey", "K");
-	}
-	
-	// Tweak grease monkey
-	this.GreaseMoneyPlus = function(){
-		// Change GM button behavior
-		var gmBtn = document.querySelector("#greasemonkey-tbb");
-		document.getAnonymousElementByAttribute(
-			gmBtn,
-			"anonid",
-			"button"
-		).onclick = function(event){
-						if(event.button == 2){
-							event.stopPropagation();
-							event.preventDefault();
-							this.parentNode.firstChild.showPopup();
-						}
-					};
-		// Change 'get scripts' behavior (open greasyfork)
-		var gmGetScripts = gmBtn.querySelector("menuitem[label='获取用户脚本']");
-		gmGetScripts.setAttribute("oncommand", "GM_BrowserUI.openTab('https://greasyfork.org/');");
 	}
 	
 	// Initialize
@@ -172,10 +228,12 @@ var GeneralMod = function(){
 		this.CenterEditBookmarkPanel();
 		this.ConfirmCtrlOrShiftClickOnBookmarkFolder();
 		this.GreaseMoneyPlus();
+		this.AddCopyTabTitleMenuitem();
 		document.getElementById("contentAreaContextMenu")
 			.addEventListener("popupshowing", e=>{this.ChangedTaOneClickAccessKey(e, self);}, false);
-		window.addEventListener("DOMContentLoaded", this.GreyOutWhitePageBackground, true);
-		
+		document.getElementById("contentAreaContextMenu")
+			.addEventListener("popupshowing", e=>{this.ChangeSendToDeviceAccessKey(e, self);}, false);
+		this.CloseCurrentTabByDoubleClickRMB();
 		this.MiscChange();
 	}
 }

@@ -1,5 +1,5 @@
 ﻿// ==UserScript==
-// @id             DragToGo
+// @id             DragToGo #BAD
 // @version        2016-11-7
 // @namespace      DragToGo@ziyunfei
 // @author         ziyunfei

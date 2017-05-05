@@ -1,5 +1,5 @@
 ﻿// ==UserScript==
-// @name           Morser
+// @name           Morser #BAD
 // @version        0.1.13
 // @namespace      Morser@Byzod.UC.js
 // @author         Byzod
