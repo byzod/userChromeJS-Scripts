@@ -128,7 +128,7 @@ if(location == "chrome://browser/content/browser.xul"){
 								var fileSaving = Components.classes["@mozilla.org/file/local;1"].
 										createInstance(Components.interfaces.nsILocalFile);
 								fileSaving.initWithPath("Q:\\Down");
-								fileSaving.append(fileName);
+								fileSaving.append(fileName.replace(/(\.\w+)[^\.]*$/g, "$1").replace(/[<>:"/\\\|\?\*]/gi, '_'));
 								
 								var options = {
 									source: aSrc,
