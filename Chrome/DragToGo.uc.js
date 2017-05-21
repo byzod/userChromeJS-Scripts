@@ -1,6 +1,6 @@
 ﻿// ==UserScript==
 // @id             DragToGo #BAD
-// @version        2017-5-21
+// @version        2017-5-22
 // @namespace      DragToGo@ziyunfei
 // @author         ziyunfei
 // @modifier       Byzod
@@ -12,6 +12,8 @@ if(location == "chrome://browser/content/browser.xul"){
 		var self = arguments.callee;
 		// Drag timeout, ms
 		self.DRAG_TIMEOUT = 300;
+		// We're ready to handle a drop event
+		self.readyForDrop = true;
 		// Used for timeout
 		self.dragTimeoutStart = function(){
 			window.clearTimeout(self._Timer);
@@ -66,7 +68,7 @@ if(location == "chrome://browser/content/browser.xul"){
 				}
 			case "dragover":
 				{
-					if(self.startPoint && self.readyForDrop) {
+					if(self.readyForDrop && self.startPoint) {
 						Components.classes["@mozilla.org/widget/dragservice;1"]
 							.getService(Components.interfaces.nsIDragService)
 							.getCurrentSession().canDrop = true;
@@ -78,25 +80,25 @@ if(location == "chrome://browser/content/browser.xul"){
 			case "drop":
 				{
 					// Timeout check
-					console.log("DragToGo: Drop event, readyForDrop: " + self.readyForDrop);// DEBUG
-					console.dir(event);
+					// console.log("DragToGo: Drop event, readyForDrop: " + self.readyForDrop);// DEBUG
+					// console.dir(event);// DEBUG
 					window.clearTimeout(self._Timer);
 					
-					// /*DEBUG*/console.log("DTG: Drop");
-					if(!self.readyForDrop){
+					// console.log("DTG: Drop");/*DEBUG*/
+					if(self.readyForDrop == false){
 						// Quit point
 						self.startPoint = null;
 						return;
 					}
 					
-					// /*DEBUG*/console.log("DTG: ReadyForDrop");
+					// console.log("DTG: ReadyForDrop");/*DEBUG*/
 					if (event.target.localName != "textarea" 
-						&& (!(event.target.localName == "input" 
-							&& (event.target.type == "text" || event.target.type == "password"))
+						&& !(event.target.localName == "input" 
+								&& (event.target.type == "text" || event.target.type == "password")
 							)
 						&& event.target.contentEditable != "true"
 					) {
-						// /*DEBUG*/console.log("DTG: sp %o", self.startPoint);
+						// console.log("DTG: sp %o", self.startPoint);/*DEBUG*/
 						if(self.startPoint){
 							event.preventDefault();
 							event.stopPropagation();
@@ -117,7 +119,6 @@ if(location == "chrome://browser/content/browser.xul"){
 											inBackground: false
 										}
 									);
-									//return;
 								}
 								if (direction == "D") {
 									//保存图片到Q:\\Down
@@ -141,7 +142,6 @@ if(location == "chrome://browser/content/browser.xul"){
 											setTimeout(n.close.bind(n), 1500);
 										});
 									});
-									//return;
 								}
 								if (direction == "L") {
 									//前台打开图片
@@ -154,7 +154,6 @@ if(location == "chrome://browser/content/browser.xul"){
 											inBackground: false
 										}
 									);
-									//return;
 								}
 								if (direction == "R") {
 									//后台打开图片链接
@@ -167,13 +166,11 @@ if(location == "chrome://browser/content/browser.xul"){
 											}
 										);
 									}
-									//return;
 								}
 							} else if (event.dataTransfer.types.contains("text/x-moz-url")) {
 								if (direction == "U") {
 									//在当前标签打开链接
 									loadURI(event.dataTransfer.getData("text/x-moz-url").split("\n")[0]);
-									//return;
 								}
 								if (direction == "D") {
 									//链接另存为
@@ -182,7 +179,6 @@ if(location == "chrome://browser/content/browser.xul"){
 									saveURL(event.dataTransfer.getData("text/x-moz-url")
 										.split("\n")[0], null, null, true, false, ref, doc
 									);
-									//return;
 								}
 								if (direction == "L") {
 									//前台打开链接
@@ -193,7 +189,6 @@ if(location == "chrome://browser/content/browser.xul"){
 											inBackground: false
 										}
 									);
-									//return;
 								}
 								if (direction == "R") {
 									//后台打开链接
@@ -204,7 +199,6 @@ if(location == "chrome://browser/content/browser.xul"){
 											inBackground: true
 										}
 									);
-									//return;
 								}
 							} else {
 								var dragStr = event.dataTransfer.getData("text/unicode");
@@ -217,14 +211,12 @@ if(location == "chrome://browser/content/browser.xul"){
 									gFindBar.onFindCommand();
 									setTimeout(()=>{gFindBar.toggleHighlight(false)}, 10);
 									setTimeout(()=>{gFindBar.toggleHighlight(true)}, 20);
-									//return;
 								}
 								if (direction == "D") {
 									//复制文字
 									Components.classes["@mozilla.org/widget/clipboardhelper;1"]
 										.getService(Components.interfaces.nsIClipboardHelper)
 										.copyString(dragStr);
-									//return;
 								}
 								if (direction == "L") {
 									//站内前台搜索文字
@@ -235,7 +227,6 @@ if(location == "chrome://browser/content/browser.xul"){
 											inBackground: false
 										}
 									);
-									//return;
 								}
 								if (direction == "R") {
 									//后台搜索文字, 若看起来像URL，尝试后台打开
@@ -256,21 +247,55 @@ if(location == "chrome://browser/content/browser.xul"){
 											}
 										);
 									}
-									//return;
 								}
 							}
 						} else {
 							// Maybe it's external links
 							// External link handler
-							// /*DEBUG*/console.log("DTG: Yes we just fucked a external link");
-							event.preventDefault();
-							event.stopPropagation();
+							// console.dir(event);/*DEBUG*/
+							
+							// Contains files, let the browser handle it
+							if (event.dataTransfer.types.contains("Files")){
+								// Do nothing;
+							} else if (event.dataTransfer.types.contains("text/plain")){
+								// Contains text
+								var dragStr = event.dataTransfer.getData("text/unicode");
+								if(dragStr.length > 0){
+									var Ss = Components.classes["@mozilla.org/browser/search-service;1"]
+											.getService(Components.interfaces.nsIBrowserSearchService);
+									var engine = Ss.currentEngine;
+									//前台搜索文字, 若看起来像URL，尝试前台打开
+									if(self.seemAsURL(dragStr)){
+										gBrowser.loadOneTab(
+											dragStr,
+											{
+												referrerURI: aReferrerURI, 
+												inBackground: false
+											}
+										);
+									} else {
+										gBrowser.loadOneTab(
+											engine.getSubmission(dragStr, null).uri.spec,
+											{
+												referrerURI: aReferrerURI, 
+												inBackground: false
+											}
+										);
+									}
+									event.preventDefault();
+									event.stopPropagation();
+								} else {
+									// 0 length string, wtf? ... let's skip it
+									// Do nothing
+								}
+							}
+							// else do nothing
 						}
 					}
 					
 					// Reset status
 					self.startPoint = null;
-					self.readyForDrop = false;
+					self.readyForDrop = true;
 				}
 		}
 	})();
