@@ -156,7 +156,7 @@ var GeneralMod = function(){
 		item.setAttribute("accesskey", "X");
 		item.setAttribute("label", "复制标签页标题");
 		item.setAttribute("oncommand", "Components.classes['@mozilla.org/widget/clipboardhelper;1'].getService(Components.interfaces.nsIClipboardHelper).copyString(TabContextMenu.contextTab.linkedBrowser.contentTitle);");
-		menu.appendChild(item)
+		menu.appendChild(item);
 	}
 	
 	// Close current tab when double click RMB
@@ -208,6 +208,17 @@ var GeneralMod = function(){
 		}
 	}
 	
+	// Add context item: open current page in private window
+	this.AddOpenInPrivateWindowContextMenuItem = function(){
+		var menu = document.querySelector('#contentAreaContextMenu');
+		var item = document.createElement("menuitem");
+		item.setAttribute("id", "bv-context-opencurrenttabprivate");
+		item.setAttribute("label", "在隐私窗口打开当前页");
+		item.setAttribute("oncommand", 'openLinkIn(gBrowser.contentWindow.location.href,"window",gContextMenu._openLinkInParameters({"private": "true"}));');
+		// menu.insertBefore(item, document.querySelector('#context-openlinkprivate'));
+		menu.appendChild(item);
+	}
+	
 	// Misc simple modification
 	this.MiscChange = function(){
 		// Small icon
@@ -234,6 +245,7 @@ var GeneralMod = function(){
 		document.getElementById("contentAreaContextMenu")
 			.addEventListener("popupshowing", e=>{this.ChangeSendToDeviceAccessKey(e, self);}, false);
 		this.CloseCurrentTabByDoubleClickRMB();
+		this.AddOpenInPrivateWindowContextMenuItem();
 		this.MiscChange();
 	}
 }
