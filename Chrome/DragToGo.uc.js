@@ -287,6 +287,8 @@ function DragToGo(){
 								// Contains text
 								var dragStr = event.dataTransfer.getData("text/unicode");
 								if(dragStr.length > 0){
+									event.preventDefault();
+									event.stopPropagation();
 									var Ss = Components.classes["@mozilla.org/browser/search-service;1"]
 											.getService(Components.interfaces.nsIBrowserSearchService);
 									var engine = Ss.currentEngine;
@@ -308,8 +310,6 @@ function DragToGo(){
 											}
 										);
 									}
-									event.preventDefault();
-									event.stopPropagation();
 								} else {
 									// 0 length string, wtf? ... let's skip it
 									// Do nothing
