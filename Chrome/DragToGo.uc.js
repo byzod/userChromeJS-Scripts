@@ -1,93 +1,119 @@
 ﻿// ==UserScript==
 // @id             DragToGo #BAD
-// @version        2017-5-22
+// @version        2017-5-22A
 // @namespace      DragToGo@ziyunfei
 // @author         ziyunfei
 // @modifier       Byzod
 // @description    DragToGo
 // ==/UserScript==
- 
-if(location == "chrome://browser/content/browser.xul"){
-	(function(event) {
-		var self = arguments.callee;
-		// Drag timeout, ms
-		self.DRAG_TIMEOUT = 300;
-		// We're ready to handle a drop event
-		self.readyForDrop = true;
-		// Used for timeout
-		self.dragTimeoutStart = function(){
-			window.clearTimeout(self._Timer);
-			self.readyForDrop = true;
-			self._Timer = window.setTimeout(()=>{
-					self.readyForDrop = false;
-					// console.log("DragToGo: timeout(" + self._Timer + ") timeouted.");// DEBUG
-					// console.log("DragToGo: timeout event, readyForDrop: " + self.readyForDrop);// DEBUG
-				}, self.DRAG_TIMEOUT);
-			// console.log("DragToGo: timeout(" + self._Timer + ") started.");// DEBUG
-		}
-		// URL guess
-		self.seemAsURL = function (url) {
-			// url test
-			var DomainName = /(\w+(\-+\w+)*\.)+\w{2,7}/;
-			var HasSpace = /\S\s+\S/;
-			var KnowNameOrSlash = /^(www|bbs|forum|blog)|\//;
-			var KnowTopDomain1 = /\.(com|net|org|gov|edu|info|mobi|mil|asia)$/;
-			var KnowTopDomain2 = /\.(de|uk|eu|nl|it|cn|be|us|br|jp|ch|fr|at|se|es|cz|pt|ca|ru|hk|tw|pl|me|tv|cc)$/;
-			var IsIpAddress = /^([1-2]?\d?\d\.){3}[1-2]?\d?\d/;
-			var seemAsURL = !HasSpace.test(url) 
-							&& DomainName.test(url) 
-							&& (KnowNameOrSlash.test(url) 
-								|| KnowTopDomain1.test(url) 
-								|| KnowTopDomain2.test(url) 
-								|| IsIpAddress.test(url)
-								);
-			return seemAsURL;
-		}
+
+function DragToGo(){
+	"use strict";
+	var self = this;
+	
+	// Private: We're not ready to handle a drop event before handler registered
+	var readyForDrop = false;
+	// Private: The start position of dragstart event
+	var startPoint = null;
+	// Private: The source target of dragstart event
+	var sourceNode = null;
+	// Private: timer for drag timeout
+	var dragTimer = null;
+	
+	// Drag timeout, ms
+	this.DRAG_TIMEOUT = 300;
+	
+	// Used for ready state timeout
+	this.DragTimeoutStart = function(){
+		window.clearTimeout(dragTimer);
+		readyForDrop = true;
+		dragTimer = window.setTimeout(()=>{
+				readyForDrop = false;
+				// console.log("DragToGo: timeout(" + dragTimer + ") timeouted.");// DEBUG
+				// console.log("DragToGo: timeout event, readyForDrop: " + readyForDrop);// DEBUG
+			}, self.DRAG_TIMEOUT);
+		// console.log("DragToGo: timeout(" + dragTimer + ") started.");// DEBUG
+	}
+	
+	// URL guess
+	this.SeemAsURL = function (url) {
+		// url test
+		var DomainName = /(\w+(\-+\w+)*\.)+\w{2,7}/;
+		var HasSpace = /\S\s+\S/;
+		var KnowNameOrSlash = /^(www|bbs|forum|blog)|\//;
+		var KnowTopDomain1 = /\.(com|net|org|gov|edu|info|mobi|mil|asia)$/;
+		var KnowTopDomain2 = /\.(de|uk|eu|nl|it|cn|be|us|br|jp|ch|fr|at|se|es|cz|pt|ca|ru|hk|tw|pl|me|tv|cc)$/;
+		var IsIpAddress = /^([1-2]?\d?\d\.){3}[1-2]?\d?\d/;
+		var seemAsURL = !HasSpace.test(url) 
+						&& DomainName.test(url) 
+						&& (KnowNameOrSlash.test(url) 
+							|| KnowTopDomain1.test(url) 
+							|| KnowTopDomain2.test(url) 
+							|| IsIpAddress.test(url)
+							);
+		return seemAsURL;
+	}
+	
+	// Register drag&drop event handler
+	this.RegisterEventHandler = function(){
+		["dragstart", "dragover", "drop"].forEach(
+			function(type){
+				gBrowser.mPanelContainer.addEventListener(type, self.DragDropHandler, false);
+			}
+		);
 		
-		if (!event) {
-			["dragstart", "dragover", "drop"].forEach(function(type) {
-				gBrowser.mPanelContainer.addEventListener(type, self, false);
-			});
-			window.addEventListener("unload", function() {
-				["dragstart", "dragover", "drop"].forEach(function(type) {
-					gBrowser.mPanelContainer.removeEventListener(type, self, false);
-				});
-			}, false);
-			return;
-		}
+		// OK, now we're ready to handle drop event
+		readyForDrop = true;
+		
+		window.addEventListener(
+			"unload",
+			function() {
+				["dragstart", "dragover", "drop"].forEach(
+					function(type) {
+						gBrowser.mPanelContainer.removeEventListener(type, self.DragDropHandler, false);
+					}
+				);
+			},
+			false
+		);
+	}
+	
+	// The drag&drop event handler
+	this.DragDropHandler = function(event){
 		switch (event.type) {
 			case "dragstart":
 				{
-					self.startPoint = [event.screenX, event.screenY];
-					self.sourceNode = event.target;
+					startPoint = [event.screenX, event.screenY];
+					sourceNode = event.target;
 					if(event.target.localName == "img"){
 						event.dataTransfer.setData("application/x-moz-file-promise-url", event.target.src);
 					}
-					self.dragTimeoutStart();
+					self.DragTimeoutStart();
 					break;
 				}
 			case "dragover":
 				{
-					if(self.readyForDrop && self.startPoint) {
+					if(readyForDrop && startPoint) {
 						Components.classes["@mozilla.org/widget/dragservice;1"]
 							.getService(Components.interfaces.nsIDragService)
 							.getCurrentSession().canDrop = true;
 					}
 					// Timeout check
-					// console.log("DragToGo: Dragover event, readyForDrop: " + self.readyForDrop);// DEBUG
+					// console.log("DragToGo: Dragover event, readyForDrop: " + readyForDrop);// DEBUG
 					break;
 				}
 			case "drop":
 				{
 					// Timeout check
-					// console.log("DragToGo: Drop event, readyForDrop: " + self.readyForDrop);// DEBUG
+					// console.log("DragToGo: Drop event, readyForDrop: " + readyForDrop);// DEBUG
 					// console.dir(event);// DEBUG
-					window.clearTimeout(self._Timer);
+					window.clearTimeout(dragTimer);
 					
 					// console.log("DTG: Drop");/*DEBUG*/
-					if(self.readyForDrop == false){
+					if(readyForDrop === false){
 						// Quit point
-						self.startPoint = null;
+						startPoint = null;
+						readyForDrop = true;
 						return;
 					}
 					
@@ -98,11 +124,11 @@ if(location == "chrome://browser/content/browser.xul"){
 							)
 						&& event.target.contentEditable != "true"
 					) {
-						// console.log("DTG: sp %o", self.startPoint);/*DEBUG*/
-						if(self.startPoint){
+						// console.log("DTG: sp %o", startPoint);/*DEBUG*/
+						if(startPoint){
 							event.preventDefault();
 							event.stopPropagation();
-							var [subX, subY] = [event.screenX - self.startPoint[0], event.screenY - self.startPoint[1]];
+							var [subX, subY] = [event.screenX - startPoint[0], event.screenY - startPoint[1]];
 							var [distX, distY] = [(subX > 0 ? subX : (-subX)), (subY > 0 ? subY : (-subY))];
 							var direction;
 							if (distX > distY) direction = subX < 0 ? "L" : "R";
@@ -230,7 +256,7 @@ if(location == "chrome://browser/content/browser.xul"){
 								}
 								if (direction == "R") {
 									//后台搜索文字, 若看起来像URL，尝试后台打开
-									if(self.seemAsURL(dragStr)){
+									if(self.SeemAsURL(dragStr)){
 										gBrowser.loadOneTab(
 											dragStr,
 											{
@@ -265,7 +291,7 @@ if(location == "chrome://browser/content/browser.xul"){
 											.getService(Components.interfaces.nsIBrowserSearchService);
 									var engine = Ss.currentEngine;
 									//前台搜索文字, 若看起来像URL，尝试前台打开
-									if(self.seemAsURL(dragStr)){
+									if(self.SeemAsURL(dragStr)){
 										gBrowser.loadOneTab(
 											dragStr,
 											{
@@ -294,9 +320,15 @@ if(location == "chrome://browser/content/browser.xul"){
 					}
 					
 					// Reset status
-					self.startPoint = null;
-					self.readyForDrop = true;
+					startPoint = null;
+					break;
 				}
 		}
-	})();
+	}
+}
+
+if(location == "chrome://browser/content/browser.xul"){
+	"use strict";
+	let dtg = new DragToGo();
+	dtg.RegisterEventHandler();
 }
